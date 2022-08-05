@@ -1,53 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-
-function buildWaveHeader(opts) {
-    var numFrames = opts?.numFrames || 1;
-    var numChannels = opts?.numChannels || 2;
-    var sampleRate = opts?.sampleRate || 44100;
-    var bytesPerSample = opts?.bytesPerSample || 2;
-    var blockAlign = numChannels * bytesPerSample;
-
-    var byteRate = sampleRate * blockAlign;
-    var dataSize = numFrames * blockAlign;
-
-    var buffer = new ArrayBuffer(162); // 44
-    var dv = new DataView(buffer);
-
-    var p = 0;
-
-    function writeString(s) {
-        for (var i = 0; i < s.length; i++) {
-            dv.setUint8(p + i, s.charCodeAt(i));
-        }
-        p += s.length;
-    }
-
-    function writeUint32(d) {
-        dv.setUint32(p, d, true);
-        p += 4;
-    }
-
-    function writeUint16(d) {
-        dv.setUint16(p, d, true);
-        p += 2;
-    }
-
-    writeString('RIFF');              // ChunkID
-    writeUint32(dataSize + 36);       // ChunkSize
-    writeString('WAVE');              // Format
-    writeString('fmt ');              // Subchunk1ID
-    writeUint32(16);                  // Subchunk1Size
-    writeUint16(1);                   // AudioFormat
-    writeUint16(numChannels);         // NumChannels
-    writeUint32(sampleRate);          // SampleRate
-    writeUint32(byteRate);            // ByteRate
-    writeUint16(blockAlign);          // BlockAlign
-    writeUint16(bytesPerSample * 8);  // BitsPerSample
-    writeString('data');              // Subchunk2ID
-    writeUint32(dataSize);            // Subchunk2Size
-
-    return buffer;
-}
+import React, { useState, useEffect, useRef } from 'react';
 
 
 export const encodeHeader = (
@@ -79,6 +30,35 @@ export const encodeHeader = (
   dataView.setUint32(40, dataChunkSize, true);
 };
 
+
+function detectBrowser() {
+  let userAgent = navigator.userAgent;
+  let browserName;
+  
+  if(userAgent.match(/chrome|chromium|crios/i)){
+    browserName = "chrome";
+  }else if(userAgent.match(/firefox|fxios/i)){
+    browserName = "firefox";
+  }  else if(userAgent.match(/safari/i)){
+    browserName = "safari";
+  }else if(userAgent.match(/opr\//i)){
+    browserName = "opera";
+  } else if(userAgent.match(/edg/i)){
+    browserName = "edge";
+  }else{
+    browserName="No browser detection";
+  }
+  return browserName;
+};
+
+function getAudioMimeType() {
+  console.log('detectBrowser', detectBrowser());
+  if (detectBrowser() === 'firefox') {
+    return 'audio/ogg;codecs="opus"'; // audio/ogg;codecs="opus"
+  }
+  return 'audio/webm;codecs="opus"'
+};
+
 function _appendBuffer(buffer1, buffer2) {
   var tmp = new Uint8Array(buffer1.byteLength + buffer2.byteLength);
   tmp.set(new Uint8Array(buffer1), 0);
@@ -92,23 +72,18 @@ const ChatInput = () => {
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [blobUrls, setBlobUrls] = useState([]);
   const headerBlob = useRef([]);
-  
-  
+
   const testaudio = useRef(null);
 
-
   const [isRecording, setIsRecording] = useState(false);
-
-  const hasAudio = useMemo(() => {
-    return fileUrls.current;
-  })
 
   const onError = err => {
     console.log('The following error occured: ' + err);
   };
 
   const onRecording = stream => {
-    const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs="opus"' });
+    const recorder = new MediaRecorder(stream, { mimeType: getAudioMimeType() }); // 'audio/webm;codecs="opus"'
+    
     setMediaRecorder(recorder);
 
     recorder.onstart = () => {
@@ -156,15 +131,8 @@ const ChatInput = () => {
   };
 
   useEffect(() => {
-    const hasUserMedia = window.navigator.getUserMedia =
-      window.navigator.getUserMedia ||
-      window.navigator.mozGetUserMedia ||
-      window.navigator.msGetUserMedia ||
-      window.navigator.webkitGetUserMedia;
-
     const constraints = { audio: true };
     navigator.mediaDevices.getUserMedia(constraints).then(onRecording, onError);
-
   }, []);
 
 
@@ -196,19 +164,19 @@ const ChatInput = () => {
     const audioTypes = ["webm", "ogg", "mp3", "x-matroska"];
     const codecs = ["should-not-be-supported","vp9", "vp9.0", "vp8", "vp8.0", "avc1", "av1", "h265", "h.265", "h264", "h.264", "opus", "pcm", "aac", "mpeg", "mp4a"];
     
-    const supportedVideos = getSupportedMimeTypes("video", videoTypes, codecs);
+    // const supportedVideos = getSupportedMimeTypes("video", videoTypes, codecs);
     const supportedAudios = getSupportedMimeTypes("audio", audioTypes, codecs);
     
-    console.log('-- Top supported Video : ', supportedVideos[0])
-    console.log('-- Top supported Audio : ', supportedAudios[0])
-    console.log('-- All supported Videos : ', supportedVideos)
+    // console.log('-- Top supported Video : ', supportedVideos[0])
+    // console.log('-- Top supported Audio : ', supportedAudios[0])
+    // console.log('-- All supported Videos : ', supportedVideos)
     console.log('-- All supported Audios : ', supportedAudios)
-  }, [])
+  }, []);
 
   const startRecording = () => {
     if (mediaRecorder) {
       console.log('start');
-      mediaRecorder.start(3000);
+      mediaRecorder.start(4000);
     }
   }
 
@@ -232,7 +200,7 @@ const ChatInput = () => {
       <hr />
       <hr />
 
-      {hasAudio && fileUrls.current.map((item, index) => {
+      {fileUrls.current.map((item, index) => {
         return (
           <audio key={index} controls src={item} />
         )
