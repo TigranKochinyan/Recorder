@@ -54,9 +54,9 @@ function detectBrowser() {
 function getAudioMimeType() {
   console.log('detectBrowser', detectBrowser());
   if (detectBrowser() === 'firefox') {
-    return 'audio/ogg;codecs="opus"'; // audio/ogg;codecs="opus"
+    return 'audio/ogg;codecs=opus'; // audio/ogg;codecs="opus"
   }
-  return 'audio/webm;codecs="opus"'
+  return 'audio/webm;codecs=opus'
 };
 
 function _appendBuffer(buffer1, buffer2) {
@@ -74,6 +74,8 @@ const ChatInput = () => {
   const headerBlob = useRef([]);
 
   const testaudio = useRef(null);
+
+  const blobs = useRef([]);
 
   const [isRecording, setIsRecording] = useState(false);
 
@@ -109,6 +111,7 @@ const ChatInput = () => {
         // chrome ~ 162
 
         const blobURL = window.URL.createObjectURL(chunk);
+        blobs.current = [...blobs.current, chunk];
 
         setBlobUrls([...blobUrls, blobURL]);
 
@@ -120,13 +123,45 @@ const ChatInput = () => {
         console.log('header buffer', headerBlob.current);
         console.log('bufferWithHeader', bufferWithHeader);
 
-        const blob = new Blob([bufferWithHeader], { type : 'audio/webm' });
+        const blob = new Blob([bufferWithHeader], { type : 'audio/webm;codecs=opus' });
         // {type : 'audio/ogg'} // { 'type' : 'audio/wav' }; { 'type' : 'audio/webm' }
         console.log('blob', blob);
+        blobs.current = [...blobs.current, blob];
         const blobURL = window.URL.createObjectURL(blob);
         setBlobUrls([...blobUrls, blobURL]);
         fileUrls.current = [...fileUrls.current, blobURL];
       }
+
+      if (blobs.current.length === 4) {
+        const firstBlop = blobs.current[0];
+        const secondBlop = blobs.current[1];
+
+        const firstArrayBuffer = await firstBlop.arrayBuffer(); 
+        const secondArrayBuffer = await secondBlop.arrayBuffer();
+        const yy = secondArrayBuffer.slice(162);
+
+
+        console.log(firstBlop);
+        console.log(secondBlop);
+        console.log(firstArrayBuffer);
+        console.log(secondArrayBuffer);
+
+        const twoBlobs = _appendBuffer(firstArrayBuffer, yy);
+        console.log('4444', twoBlobs);
+
+
+        const blob = new Blob([twoBlobs], { type : 'audio/webm;codecs=opus' });
+        // {type : 'audio/ogg'} // { 'type' : 'audio/wav' }; { 'type' : 'audio/webm' }
+
+        const blobURL = window.URL.createObjectURL(blob);
+
+        testaudio.current = blobURL;
+
+        console.log('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
+
+      }
+
+      console.log('blobs.current', blobs.current);
     };
   };
 
@@ -176,7 +211,7 @@ const ChatInput = () => {
   const startRecording = () => {
     if (mediaRecorder) {
       console.log('start');
-      mediaRecorder.start(4000);
+      mediaRecorder.start(5000);
     }
   }
 
